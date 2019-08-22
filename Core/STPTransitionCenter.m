@@ -1,5 +1,6 @@
 #import "STPTransitionCenter.h"
 
+#import "STPPresentationController.h"
 #import "STPTransition.h"
 #import "UIViewController+STPTransitions.h"
 
@@ -106,6 +107,12 @@ typedef NS_ENUM(NSUInteger, STPTransitionOperation) {
     return [self interactorForAnimator:animator];
 }
 
+- (UIPresentationController *)presentationControllerForPresentedViewController:(UIViewController *)presented
+                                                      presentingViewController:(UIViewController *)presenting
+                                                          sourceViewController:(UIViewController *)source {
+    return [[STPPresentationController alloc] initWithPresentedViewController:presented presentingViewController:presenting];
+}
+
 #pragma mark - Internal Methods
 
 - (void)messageViewControllersAboutOperation:(STPTransitionOperation)operation
@@ -167,7 +174,6 @@ typedef NS_ENUM(NSUInteger, STPTransitionOperation) {
                 [self setNextPopOrDismissTransition:transition.reverseTransition fromViewController:toViewController];
             }
         } else {
-            [self removeAllTransitionsForViewController:fromViewController];
             if (operation == STPTransitionOperationPopDismiss) {
                 transition.reversed = YES;
             }
