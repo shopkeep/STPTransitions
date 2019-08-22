@@ -84,50 +84,61 @@
 - (void)cancelInteractiveTransition {
 }
 
+- (void)pauseInteractiveTransition {
+}
+
+- (nullable __kindof UIView *)viewForKey:(nonnull UITransitionContextViewKey)key {
+    return nil;
+}
+
+
 - (UIModalPresentationStyle)presentationStyle {
     return UIModalPresentationNone;
 }
 
-@end
+@synthesize targetTransform = _targetTransform;
 
-static void *STPTransitionsSourceController = &STPTransitionsSourceController;
+@end
 
 @implementation UIViewController (STPTransitions)
 
 - (void)setSourceViewController:(UIViewController *)sourceViewController {
-    objc_setAssociatedObject(self, STPTransitionsSourceController, sourceViewController, OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(self, @selector(sourceViewController), sourceViewController, OBJC_ASSOCIATION_ASSIGN);
 }
 
 - (UIViewController *)sourceViewController {
-    return objc_getAssociatedObject(self, STPTransitionsSourceController);
+    return objc_getAssociatedObject(self, @selector(sourceViewController));
+}
+
+- (void)setFixInterfaceOrientationRotation:(BOOL)fixInterfaceOrientationRotation {
+    objc_setAssociatedObject(self, @selector(fixInterfaceOrientationRotation), @(fixInterfaceOrientationRotation), OBJC_ASSOCIATION_ASSIGN);
+}
+
+- (BOOL)fixInterfaceOrientationRotation {
+    return [objc_getAssociatedObject(self, @selector(fixInterfaceOrientationRotation)) boolValue];
 }
 
 - (void)presentViewController:(UIViewController *)viewControllerToPresent
               usingTransition:(STPTransition *)transition
                  onCompletion:(void (^)(void))completion {
     if (![self.transitioningDelegate isKindOfClass:STPTransitionCenter.class]) {
-        @throw [NSException exceptionWithName:NSInternalInconsistencyException
-                                       reason:@"The view controller's transitioning delegate has to be an instance of STPTransitionCenter."
-                                     userInfo:nil];
+        self.transitioningDelegate = STPTransitionCenter.sharedInstance;
     }
-    STPTransitionCenter *center = self.transitioningDelegate;
+    STPTransitionCenter *center = (STPTransitionCenter *)self.transitioningDelegate;
     [center setNextPushOrPresentTransition:transition fromViewController:self];
     viewControllerToPresent.sourceViewController = self;
     viewControllerToPresent.modalPresentationStyle = UIModalPresentationCustom;
     viewControllerToPresent.transitioningDelegate = center;
-    transition.needsRotationFixForModals = YES;
-    transition.reverseTransition.needsRotationFixForModals = YES;
+
     [self presentViewController:viewControllerToPresent animated:YES completion:completion];
 }
 
 - (void)dismissViewControllerUsingTransition:(STPTransition *)transition
                                 onCompletion:(void (^)(void))completion {
     if (![self.transitioningDelegate isKindOfClass:STPTransitionCenter.class]) {
-        @throw [NSException exceptionWithName:NSInternalInconsistencyException
-                                       reason:@"The view controller's transitioning delegate has to be an instance of STPTransitionCenter."
-                                     userInfo:nil];
+        self.transitioningDelegate = STPTransitionCenter.sharedInstance;
     }
-    STPTransitionCenter *center = self.transitioningDelegate;
+    STPTransitionCenter *center = (STPTransitionCenter *)self.transitioningDelegate;
     [center setNextPopOrDismissTransition:transition fromViewController:self];
     transition.needsRotationFixForModals = YES;
     [self dismissViewControllerAnimated:YES completion:completion];
@@ -145,6 +156,11 @@ static void *STPTransitionsSourceController = &STPTransitionsSourceController;
     void (^onCompletion)(BOOL) = ^(BOOL finished) {
         [toViewController didMoveToParentViewController:weakSelf];
         [fromViewController removeFromParentViewController];
+        if (transition.onCompletion) {
+            transition.onCompletion(transition, YES);
+        }
+        [fromViewController didPerformTransitionAsOuterViewController:transition];
+        [toViewController didPerformTransitionAsInnerViewController:transition];
     };
 
     if (transition) {
@@ -163,8 +179,10 @@ static void *STPTransitionsSourceController = &STPTransitionsSourceController;
 }
 
 - (void)willPerformTransitionAsInnerViewController:(STPTransition *)transition {}
+- (void)didPerformTransitionAsInnerViewController:(STPTransition *)transition {}
 
 - (void)willPerformTransitionAsOuterViewController:(STPTransition *)transition {}
+- (void)didPerformTransitionAsOuterViewController:(STPTransition *)transition {}
 
 
 @end
